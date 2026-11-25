@@ -258,6 +258,35 @@ footer img{width:38px;height:38px}
 .qa .right{color:var(--muted);font-size:12px}
 @media(max-width:860px){.grid.mt[style*="1fr 1fr"]{grid-template-columns:1fr!important}}
 @media(max-width:560px){.profhead{flex-direction:column}}
+
+/* messages */
+.k-message{background:#e0f2f1;color:#00695c}
+.msgbtn{margin-left:auto;padding:3px 8px;font-size:11px}
+.mwrap{display:grid;grid-template-columns:300px 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;height:min(620px,calc(100vh - 300px));min-height:380px}
+.mlist{border-right:1px solid var(--line);overflow-y:auto;background:#fbfaf6}
+.mrow{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit}
+.mrow:hover{background:#f3efe2}
+.mrow.on{background:var(--navy);color:#fff}
+.mrow img,.mrow .ph,.mhd img,.mhd .ph{width:38px;height:38px;border-radius:4px;object-fit:cover;background:var(--navy3);flex:none}
+.hqic{font-size:13px!important;font-family:"Public Sans"!important;background:var(--gold)!important;color:#1b1503!important}
+.mt{display:grid;min-width:0}
+.mn{font-weight:800;font-size:14px;display:flex;align-items:center}
+.mp{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mthread{display:flex;flex-direction:column;min-width:0;min-height:0}
+.mhd{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:2px solid var(--gold);background:var(--navy);color:#fff}
+.mhd .mrk{margin-left:auto;font-size:11px;color:var(--gold2);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.mback{display:none;color:#fff}
+.mbody{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--paper)}
+.mday{align-self:center;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:8px 0 2px}
+.bub{max-width:72%;align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:12px 12px 12px 3px;padding:7px 11px}
+.bub.me{align-self:flex-end;background:var(--navy);color:#fff;border-color:var(--navy);border-radius:12px 12px 3px 12px}
+.bub .bn{font-size:11px;font-weight:800;color:var(--navy3)}
+.bub .bt{white-space:pre-wrap;word-break:break-word}
+.bub .bm{font-size:10px;opacity:.6;text-align:right;margin-top:2px}
+.msend{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
+.msend textarea{flex:1;resize:none;border:1px solid #b9b3a4;border-radius:4px;padding:9px 10px;font:inherit;max-height:120px}
+.msend textarea:focus{outline:2px solid var(--gold);outline-offset:0}
+@media(max-width:860px){.mwrap{grid-template-columns:1fr;height:calc(100vh - 290px)}.sel-yes .mlist{display:none}.sel-no .mthread{display:none}.mback{display:inline-flex}.mlist{border-right:0}.bub{max-width:85%}}
 </style>
 </head>
 <body>

@@ -8,8 +8,8 @@ const ICONS={
   other:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18h2v-2h-2v2zm1-16a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.8-3 5h2c0-2.3 3-2.5 3-5a4 4 0 0 0-4-4z"/></svg>'
 };
 const TYPES={call:'Incoming call',eye:'In person',web:'Online',dream:'Dream',other:'Other'};
-const KINDS={login:'Login',logout:'Logout',view:'Page view',apply:'Application',review:'Review',sighting:'Sighting',exam:'Exam',duty:'Duty',rank:'Rank',profile:'Profile',badge:'Badge'};
-const PAGES={home:'Home',missing:'Missing',sightings:'Sightings',agents:'Agents',casefile:'Case File',exam:'Field Exam',badge:'My Badge'};
+const KINDS={message:'Message',login:'Login',logout:'Logout',view:'Page view',apply:'Application',review:'Review',sighting:'Sighting',exam:'Exam',duty:'Duty',rank:'Rank',profile:'Profile',badge:'Badge'};
+const PAGES={messages:'Messages',home:'Home',missing:'Missing',sightings:'Sightings',agents:'Agents',casefile:'Case File',exam:'Field Exam',badge:'My Badge'};
 
 /* ---------- ranks ---------- */
 const RANKS=[
@@ -28,7 +28,7 @@ function insignia(i){
 }
 
 /* ---------- data ---------- */
-const S={agents:{},sightings:[],apps:{},activity:[],attempts:[],notes:'',uid:null,ready:false};
+const S={msgs:[],agents:{},sightings:[],apps:{},activity:[],attempts:[],notes:'',uid:null,ready:false};
 const me=()=>{const u=S.uid&&S.agents[S.uid];return u&&u.status==='approved'?u:null};
 const isDir=()=>{const u=me();return !!u&&rankOf(u)===6};
 const agents=()=>Object.values(S.agents).filter(u=>u.status==='approved');
@@ -43,6 +43,7 @@ async function refresh(){
     jobs.push(sb.from('jpfa_applications').select('*').then(x=>{S.apps={};(x.data||[]).forEach(a=>S.apps[a.agent_id]=a)}));
     jobs.push(sb.from('jpfa_activity').select('*').order('t',{ascending:false}).limit(2000).then(x=>S.activity=x.data||[]));
   }
+  if(u)jobs.push(loadMsgs());
   if(u)jobs.push(sb.from('jpfa_exam_attempts').select('*').order('t',{ascending:false}).then(x=>S.attempts=x.data||[]));
   if(r>=5)jobs.push(sb.from('jpfa_config').select('value').eq('key','notes').maybeSingle().then(x=>S.notes=x.data?.value||''));
   await Promise.all(jobs);S.ready=true;
@@ -76,7 +77,7 @@ function chrome(){
     ?`<a class="chip" href="#badge">${avatar(u)}<span><span class="nm">${esc(u.callsign)}</span><span class="rk">${RANKS[rankOf(u)].n}</span></span></a><button class="btn ghost sm" style="color:#fff" onclick="logout()">Log out</button>`
     :`<a class="btn gold" href="#login">Agent Login</a>`;
   const links=[['home','Home'],['missing','Missing'],['sightings','Sightings'],['agents','Agents'],['casefile','Case File']];
-  if(u)links.push(['exam','Field Exam'],['badge','My Badge']);
+  if(u){const n=unread();links.push(['messages','Messages'+(n?`<span class="cnt">${n}</span>`:'')],['exam','Field Exam'],['badge','My Badge'])}
   if(isDir()){const n=pendingApps().length;links.push(['apps','Applications'+(n?`<span class="cnt">${n}</span>`:'')],['activity','Activity'])}
   if(!u)links.push(['enlist','Enlist']);
   document.getElementById('nav').innerHTML=links.map(([h,l])=>`<a href="#${h}" class="${route===h||(route==='agent'&&h==='agents')?'on':''}">${l}</a>`).join('');
@@ -172,7 +173,7 @@ V.agents=()=>{
   return `<h2 class="pg">Agent Roster</h2><div class="pgsub"><span>Personnel Directory</span><span>${list.length} active</span></div>
   <div class="card"><div class="scroll"><table class="ros"><thead><tr><th>Agent</th><th>Badge</th><th>Rank</th><th>Aura</th><th>Reports</th><th>Enlisted</th>${dir?'<th>Last active</th><th>Appoint</th>':''}</tr></thead><tbody>
   ${list.length?list.map(a=>{const ar=rankOf(a);const n=S.sightings.filter(s=>s.by===a.id).length;
-    return `<tr class="${u&&a.id===u.id?'me':''}"><td><div class="who">${avatar(a)}<b>${who(a.id)}</b></div></td>
+    return `<tr class="${u&&a.id===u.id?'me':''}"><td><div class="who">${avatar(a)}<b>${who(a.id)}</b>${u&&a.id!==u.id?`<a class="btn sm ghost msgbtn" href="#messages/${a.id}">Message</a>`:''}</div></td>
     <td class="mono">${a.badge}</td><td style="white-space:nowrap">${insignia(ar)} ${RANKS[ar].n}</td><td class="mono">${a.aura||0}</td><td>${n}</td><td>${fmtDate(a.joined)}</td>
     ${dir?`<td style="white-space:nowrap">${ago(a.last_seen)}</td><td>${a.id===u.id?'':`<select onchange="appoint('${a.id}',this.value)" style="padding:4px;border:1px solid var(--line);border-radius:3px">${RANKS.map((k,i)=>`<option value="${i}" ${(a.appointed||0)===i?'selected':''}>${i===0?'None':k.n}</option>`).join('')}</select>`}</td>`:''}</tr>`}).join('')
   :`<tr><td colspan="8" class="empty" style="padding:16px">No agents enlisted.</td></tr>`}
@@ -343,7 +344,7 @@ V.agent=(id)=>{
   const sights=S.sightings.filter(s=>s.by===id);
   const acts=S.activity.filter(e=>e.agent_id===id);
   const logins=acts.filter(e=>e.kind==='login').length;
-  return `<div style="margin-bottom:14px"><a href="#agents" class="btn sm ghost">Back</a></div>
+  return `<div style="margin-bottom:14px;display:flex;gap:8px"><a href="#agents" class="btn sm ghost">Back</a>${a.status==='approved'&&a.id!==S.uid?`<a class="btn sm" href="#messages/${a.id}">Message</a>`:''}</div>
   <div class="card"><div class="bd profhead">
     <div class="pp">${avatar(a)}</div>
     <div style="min-width:0;flex:1"><h2 class="pg" style="margin:0">${esc(a.callsign)} <span class="stamp ${a.status}">${a.status}</span></h2>
@@ -452,15 +453,65 @@ async function dlBadge(){
   const a=document.createElement('a');a.download=`JPFA-${u.callsign}.png`;a.href=c.toDataURL('image/png');a.click();
   sb.rpc('jpfa_log_event',{p_kind:'badge',p_text:'Downloaded badge'}).then(()=>{})}
 
+
+/* ---------- messaging ---------- */
+async function loadMsgs(){const x=await sb.from('jpfa_messages').select('*').order('t',{ascending:false}).limit(1500);if(!x.error)S.msgs=(x.data||[]).reverse()}
+const unread=()=>S.msgs.filter(m=>m.to_id===S.uid&&!m.read).length;
+function convo(sel){return sel==='hq'?S.msgs.filter(m=>!m.to_id):S.msgs.filter(m=>(m.from_id===S.uid&&m.to_id===sel)||(m.from_id===sel&&m.to_id===S.uid))}
+function msgTime(t){const d=new Date(t),n=new Date();return d.toDateString()===n.toDateString()?d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):fmtDT(t)}
+function msgListHTML(sel){
+  const others=agents().filter(a=>a.id!==S.uid).map(a=>{const c=convo(a.id);return {a,last:c[c.length-1],n:c.filter(m=>m.from_id===a.id&&!m.read).length}})
+    .sort((x,y)=>(y.last?ms(y.last.t):0)-(x.last?ms(x.last.t):0)||x.a.callsign.localeCompare(y.a.callsign));
+  const hq=convo('hq'),hl=hq[hq.length-1];
+  const row=(href,on,pic,name,last,n)=>`<a class="mrow ${on?'on':''}" href="#messages/${href}">${pic}<span class="mt"><span class="mn">${name}${n?`<span class="cnt">${n}</span>`:''}</span><span class="mp">${last?esc((last.from_id===S.uid?'You: ':'')+last.body):''}</span></span></a>`;
+  return row('hq',sel==='hq',`<span class="ph hqic">HQ</span>`,'HQ',hl,0)+others.map(o=>row(o.a.id,sel===o.a.id,avatar(o.a),esc(o.a.callsign),o.last,o.n)).join('');
+}
+function threadHTML(sel){
+  const c=convo(sel);
+  if(!c.length)return '<div class="empty" style="text-align:center;padding:30px 0">No messages.</div>';
+  let out='',prevDay='';
+  for(const m of c){const day=new Date(m.t).toDateString();if(day!==prevDay){out+=`<div class="mday">${fmtDate(m.t)}</div>`;prevDay=day}
+    const mine=m.from_id===S.uid,from=S.agents[m.from_id];
+    out+=`<div class="bub ${mine?'me':''}">${!mine&&sel==='hq'?`<div class="bn">${esc(from?.callsign||'Unknown')}</div>`:''}<div class="bt">${esc(m.body)}</div><div class="bm">${msgTime(m.t)}${mine&&sel!=='hq'&&m.read?' · Read':''}</div></div>`}
+  return out}
+V.messages=(arg)=>{
+  if(!me())return need();
+  const sel=arg||'',cur=sel||'hq',other=cur==='hq'?null:S.agents[cur];
+  if(cur!=='hq'&&(!other||other.status!=='approved'))return '<div class="empty">Agent not found.</div>';
+  return `<h2 class="pg">Messages</h2><div class="pgsub"><span>Secure Comms</span><span>Encrypted // Pork-grade</span></div>
+  <div class="mwrap ${sel?'sel-yes':'sel-no'}">
+    <div class="mlist" id="msgList">${msgListHTML(cur)}</div>
+    <div class="mthread"><div class="mhd"><a href="#messages" class="btn sm ghost mback">Back</a>${cur==='hq'?'<span class="ph hqic">HQ</span><b>HQ</b>':`${avatar(other)}<b>${esc(other.callsign)}</b><span class="mrk">${RANKS[rankOf(other)].n}</span>`}</div>
+    <div class="mbody" id="thread">${threadHTML(cur)}</div>
+    <form class="msend" onsubmit="sendMsg(event,'${cur}')"><textarea id="msgIn" rows="1" maxlength="1000" placeholder="Message" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.requestSubmit()}"></textarea><button class="btn gold">Send</button></form>
+    </div></div>`};
+function curMsgSel(){const [r,a]=(location.hash.slice(1)||'').split('/');return r==='messages'?(a||'hq'):null}
+function paintMsgs(){const sel=curMsgSel();if(!sel)return;const th=document.getElementById('thread'),ls=document.getElementById('msgList');if(!th)return;
+  const atBottom=th.scrollHeight-th.scrollTop-th.clientHeight<60;const html=threadHTML(sel);
+  if(th.dataset.h!==html){th.innerHTML=html;th.dataset.h=html;if(atBottom)th.scrollTop=th.scrollHeight}
+  ls.innerHTML=msgListHTML(sel);chrome();markRead(sel)}
+function afterMsgs(){const sel=curMsgSel();const th=document.getElementById('thread');if(!th)return;th.dataset.h=th.innerHTML;th.scrollTop=th.scrollHeight;
+  if(matchMedia('(min-width:861px)').matches||location.hash.includes('/'))document.getElementById('msgIn')?.focus();markRead(sel)}
+let marking=false;
+async function markRead(sel){if(marking||!sel||sel==='hq')return;const un=S.msgs.filter(m=>m.from_id===sel&&m.to_id===S.uid&&!m.read);if(!un.length)return;
+  marking=true;await sb.rpc('jpfa_mark_read',{p_other:sel});un.forEach(m=>m.read=true);marking=false;chrome();const ls=document.getElementById('msgList');if(ls)ls.innerHTML=msgListHTML(sel)}
+async function sendMsg(e,sel){e.preventDefault();const box=document.getElementById('msgIn'),body=box.value.trim();if(!body)return;
+  box.value='';box.disabled=true;
+  try{await rpc('jpfa_send_message',{p_to:sel==='hq'?null:sel,p_body:body})}catch(x){box.value=body}
+  box.disabled=false;box.focus();await loadMsgs();const th=document.getElementById('thread');if(th)th.scrollTop=th.scrollHeight;paintMsgs();
+  const t2=document.getElementById('thread');if(t2)t2.scrollTop=t2.scrollHeight}
+setInterval(async()=>{if(document.hidden||!S.ready||!me())return;await loadMsgs();if(curMsgSel())paintMsgs();else chrome()},5000);
+
 /* ---------- router ---------- */
 function render(){const [route,arg]=(location.hash.slice(1)||'home').split('/');chrome();
   if(!S.ready){document.getElementById('view').innerHTML='<div class="empty" style="text-align:center;padding:40px">Connecting to JPFA network…</div>';return}
   const html=(V[route]||V.home)(arg);if(html)document.getElementById('view').innerHTML=html;
   if(route==='enlist')initSig();
+  if(route==='messages')afterMsgs();
   logView(route)}
 addEventListener('hashchange',async()=>{if(location.hash!=='#enlist')submitted=null;render();scrollTo(0,0);
   const h=location.hash,route=(h.slice(1)||'home').split('/')[0];if(!S.ready||['enlist','login'].includes(route))return;
-  await refresh();if(location.hash===h&&!document.activeElement?.matches('input,textarea,select'))render()});
+  await refresh();if(location.hash!==h)return;if(route==='messages')return paintMsgs();if(!document.activeElement?.matches('input,textarea,select'))render()});
 const LIVE=['home','apps','activity','agent','agents'];
 setInterval(async()=>{if(document.hidden||!S.ready)return;const route=(location.hash.slice(1)||'home').split('/')[0];
   if(!LIVE.includes(route)||document.activeElement?.matches('input,textarea,select'))return;
