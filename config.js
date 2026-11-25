@@ -1,0 +1,2 @@
+window.JPFA_URL="https://ejxfdvzsgezwjkauszox.supabase.co";
+window.JPFA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqeGZkdnpzZ2V6d2prYXVzem94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzMTAzMzYsImV4cCI6MjEwNzg4NjMzNn0.pyx7B9Uz3Tk92YDhuWUTIjnzNGlPrZ1j6gidoz5wzUQ";
